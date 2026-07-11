@@ -1,0 +1,20 @@
+# Application binaries and helper executables
+*.exe
+
+# Local configuration and credentials
+config.yaml
+auths/
+
+# Runtime data
+*.pid
+*.log
+webui-profile/
+backups/
+backup-*/
+
+# PowerShell temporary files
+*.tmp
+
+# Windows metadata
+Thumbs.db
+Desktop.ini
