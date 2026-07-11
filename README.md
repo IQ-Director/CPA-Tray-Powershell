@@ -2,17 +2,17 @@
 
 使用 PowerShell 将 [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI) 以 Windows 系统托盘形式运行，并在每次启动时检查和更新 CLIProxyAPI。
 
-主仓库提供启动、停止、托盘和更新脚本，并通过 Git 子模块引用 RunHiddenConsole 源码；不包含 CLIProxyAPI 程序本体、配置文件、账号数据或其他运行数据。
+主仓库提供启动、停止、重启、托盘和更新脚本，并通过 Git 子模块引用 RunHiddenConsole 源码；不包含 CLIProxyAPI 程序本体、配置文件、账号数据或其他运行数据。项目发布的 Release 压缩包会附带 `RunHiddenConsole.exe`，便于直接使用。
 
 ## 功能
 
 - 隐藏启动 CLIProxyAPI，不显示终端窗口
 - 启动时检查 CLIProxyAPI 最新版本
-- 下载更新前验证官方 SHA-256 校验和
-- 更新失败时自动恢复上一版本
+- 下载更新前验证官方 SHA-256 校验和更新失败时自动恢复上一版本
 - 使用 Chrome 应用模式打开管理界面
 - 关闭管理窗口后继续在托盘后台运行
 - 双击托盘图标重新打开管理界面
+- 从托盘一键停止服务、检查更新并重新启动
 - 从托盘菜单退出并停止 CLIProxyAPI
 - 防止重复创建托盘实例
 
@@ -25,17 +25,38 @@
 - [RunHiddenConsole](https://github.com/wenshui2008/RunHiddenConsole) 的 `RunHiddenConsole.exe`
 - CLIProxyAPI 的 `config.yaml`
 
-RunHiddenConsole 源码已作为 Git 子模块引用。本仓库不直接提交其可执行文件，可以自行编译子模块，或从 [上游 Release](https://github.com/wenshui2008/RunHiddenConsole/releases/tag/1.0) 下载 `RunHiddenConsole.zip`。
+RunHiddenConsole 源码已作为 Git 子模块引用。本仓库的 Git 历史不直接提交其可执行文件，但本项目发布的 Release 压缩包会附带 `RunHiddenConsole.exe`。该文件来自 [RunHiddenConsole](https://github.com/wenshui2008/RunHiddenConsole)，并按其 MIT 许可证重新分发。
 
 ## 安装
 
-使用 Visual Studio 编译子模块，或直接从上游 Release 下载（推荐），然后将 `RunHiddenConsole.exe` 放到项目根目录，和以下文件放在同一个目录：
+### 使用 Release（推荐）
+
+从本项目的 [Releases](https://github.com/IQ-Director/CPA-Tray-Powershell/releases) 页面下载最新压缩包并解压。Release 包会附带 `RunHiddenConsole.exe`，无需单独编译或下载。
+
+Release 包不会包含：
+
+- `cli-proxy-api.exe`，首次运行 `start.bat` 时可自动下载
+- `config.yaml`，需要自行准备
+- 账号认证数据、浏览器资料和其他本地运行数据
+
+### 从源码使用
+
+克隆本仓库及 RunHiddenConsole 子模块：
+
+```powershell
+git clone --recurse-submodules https://github.com/IQ-Director/CPA-Tray-Powershell.git
+```
+
+源码仓库不包含 `RunHiddenConsole.exe`。可以自行编译 `third_party/RunHiddenConsole`，或从 [RunHiddenConsole 上游 Release](https://github.com/wenshui2008/RunHiddenConsole/releases/tag/1.0) 下载，然后将 `RunHiddenConsole.exe` 放到项目根目录。
+
+最终目录结构如下：
 
 ```text
 CLIProxyAPI/
 |-- cli-proxy-api.exe
 |-- config.yaml
 |-- RunHiddenConsole.exe
+|-- restart-and-update.ps1
 |-- start.bat
 |-- stop.bat
 |-- update-cli-proxy-api.ps1
@@ -72,6 +93,8 @@ start.bat
 4. 打开 `http://127.0.0.1:8317/management.html`。
 
 关闭管理窗口不会停止服务。双击托盘图标，或右键选择 `Open Management`，可重新打开管理界面。
+
+右键托盘图标并选择 `Restart and Update`，会在终止当前 `cli-proxy-api.exe` 进程，并在重新启动时完成更新。
 
 右键托盘图标并选择 `Exit`，会停止 CLIProxyAPI 并退出托盘程序。
 

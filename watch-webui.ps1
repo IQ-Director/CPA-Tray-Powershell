@@ -5,8 +5,8 @@
     Runs the CLIProxyAPI management page from a Windows system tray icon.
 .DESCRIPTION
     Opens the management page in Chrome app mode, keeps CLIProxyAPI running
-    after the browser window closes, and stops the service only when Exit is
-    selected from the tray menu.
+    after the browser window closes, supports updating and restarting the
+    backend, and stops the service only when Exit is selected from the tray menu.
 #>
 
 Add-Type -AssemblyName System.Drawing
@@ -17,8 +17,10 @@ $baseDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $url = "http://127.0.0.1:8317/management.html"
 $userDataDir = Join-Path $baseDir "webui-profile"
 $stopScript = Join-Path $baseDir "stop.bat"
+$restartUpdateScript = Join-Path $baseDir "restart-and-update.ps1"
 $serviceExe = Join-Path $baseDir "cli-proxy-api.exe"
 $trayIconPath = Join-Path $baseDir "CPA.ico"
+$powerShellExe = (Get-Process -Id $PID).Path
 
 # A named mutex prevents repeated start.bat calls from creating duplicate tray icons.
 $createdNew = $false
@@ -59,6 +61,8 @@ function Show-ManagementWindow {
 # Build the tray menu and notification icon without creating a visible form.
 $contextMenu = [System.Windows.Forms.ContextMenuStrip]::new()
 $openItem = $contextMenu.Items.Add("Open Management")
+$restartUpdateItem = $contextMenu.Items.Add("Restart and Update")
+$null = $contextMenu.Items.Add([System.Windows.Forms.ToolStripSeparator]::new())
 $exitItem = $contextMenu.Items.Add("Exit")
 $notifyIcon = [System.Windows.Forms.NotifyIcon]::new()
 
@@ -84,6 +88,28 @@ $openAction = {
     Show-ManagementWindow
 }
 
+$restartUpdateAction = {
+    try {
+        if (-not (Test-Path -LiteralPath $restartUpdateScript -PathType Leaf)) {
+            throw "restart-and-update.ps1 was not found."
+        }
+
+        Start-Process -FilePath $powerShellExe -ArgumentList @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", "`"$restartUpdateScript`""
+        ) -WindowStyle Hidden
+    }
+    catch {
+        $notifyIcon.ShowBalloonTip(
+            5000,
+            "CLIProxyAPI restart failed",
+            $_.Exception.Message,
+            [System.Windows.Forms.ToolTipIcon]::Error
+        )
+    }
+}
+
 # Exit is the only tray action that intentionally stops the CLIProxyAPI service.
 $exitAction = {
     $notifyIcon.Visible = $false
@@ -97,6 +123,7 @@ $exitAction = {
 
 $openItem.add_Click($openAction)
 $notifyIcon.add_DoubleClick($openAction)
+$restartUpdateItem.add_Click($restartUpdateAction)
 $exitItem.add_Click($exitAction)
 
 try {
