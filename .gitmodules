@@ -1,0 +1,3 @@
+[submodule "third_party/RunHiddenConsole"]
+	path = third_party/RunHiddenConsole
+	url = https://github.com/wenshui2008/RunHiddenConsole.git
