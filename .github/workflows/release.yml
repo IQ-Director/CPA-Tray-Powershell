@@ -1,0 +1,124 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Package release
+        shell: pwsh
+        env:
+          RUN_HIDDEN_CONSOLE_VERSION: "1.0"
+          RUN_HIDDEN_CONSOLE_SHA256: "c70fc48f1afc676b1f7ec325cfbeaa62b66bd7ac1c22a014e5b34eb1af24deff"
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $tag = $env:GITHUB_REF_NAME
+          $packageName = "CPA-Tray-Powershell-$tag-windows-x64"
+          $stageDir = Join-Path $env:RUNNER_TEMP $packageName
+          $downloadDir = Join-Path $env:RUNNER_TEMP "RunHiddenConsole"
+          $archivePath = Join-Path $env:RUNNER_TEMP "RunHiddenConsole.zip"
+          $distDir = Join-Path $PWD "dist"
+
+          New-Item -ItemType Directory -Path $stageDir, $downloadDir, $distDir -Force | Out-Null
+
+          $releaseUrl = "https://github.com/wenshui2008/RunHiddenConsole/releases/download/$env:RUN_HIDDEN_CONSOLE_VERSION/RunHiddenConsole.zip"
+          Invoke-WebRequest -Uri $releaseUrl -OutFile $archivePath
+          Expand-Archive -LiteralPath $archivePath -DestinationPath $downloadDir -Force
+
+          $runHiddenConsole = Get-ChildItem -LiteralPath $downloadDir -Filter "RunHiddenConsole.exe" -File -Recurse |
+            Where-Object { $_.FullName -match "[\\/]x64[\\/]" } |
+            Select-Object -First 1
+
+          if (-not $runHiddenConsole) {
+            $runHiddenConsole = Get-ChildItem -LiteralPath $downloadDir -Filter "RunHiddenConsole.exe" -File -Recurse |
+              Select-Object -First 1
+          }
+
+          if (-not $runHiddenConsole) {
+            throw "RunHiddenConsole.exe was not found in the upstream release archive."
+          }
+
+          $actualHash = (Get-FileHash -LiteralPath $runHiddenConsole.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualHash -ne $env:RUN_HIDDEN_CONSOLE_SHA256) {
+            throw "RunHiddenConsole.exe checksum mismatch. Expected $env:RUN_HIDDEN_CONSOLE_SHA256, got $actualHash."
+          }
+
+          $excludePatterns = @(
+            "^\.github/",
+            "^\.git",
+            "^third_party/"
+          )
+
+          $trackedFiles = @(git ls-files)
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to list tracked repository files."
+          }
+
+          $releaseFiles = $trackedFiles | Where-Object {
+            $file = $_
+            -not ($excludePatterns | Where-Object { $file -match $_ })
+          }
+
+          if (-not $releaseFiles) {
+            throw "No tracked files remain after applying release exclusions."
+          }
+
+          foreach ($file in $releaseFiles) {
+            if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {
+              throw "Tracked release file was not found: $file"
+            }
+
+            $destination = Join-Path $stageDir $file
+            $destinationDir = Split-Path -Parent $destination
+            New-Item -ItemType Directory -Path $destinationDir -Force | Out-Null
+            Copy-Item -LiteralPath $file -Destination $destination
+          }
+
+          Copy-Item -LiteralPath $runHiddenConsole.FullName -Destination (Join-Path $stageDir "RunHiddenConsole.exe")
+
+          $licenseDir = Join-Path $stageDir "THIRD_PARTY_LICENSES"
+          New-Item -ItemType Directory -Path $licenseDir -Force | Out-Null
+          $licenseUrl = "https://raw.githubusercontent.com/wenshui2008/RunHiddenConsole/382993f8269254fb1135e1b71b806a8e637a3387/LICENSE"
+          Invoke-WebRequest -Uri $licenseUrl -OutFile (Join-Path $licenseDir "RunHiddenConsole-LICENSE")
+
+          $zipPath = Join-Path $distDir "$packageName.zip"
+          Compress-Archive -Path (Join-Path $stageDir "*") -DestinationPath $zipPath -CompressionLevel Optimal
+
+          $zipHash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          $checksumPath = "$zipPath.sha256"
+          "$zipHash  $([System.IO.Path]::GetFileName($zipPath))" | Set-Content -LiteralPath $checksumPath -Encoding ascii
+
+      - name: Create GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $false
+          $tag = $env:GITHUB_REF_NAME
+          $assets = Get-ChildItem -LiteralPath "dist" -File | ForEach-Object { $_.FullName }
+
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag $assets --clobber
+          } else {
+            gh release create $tag $assets --title "CPA-Tray-Powershell $tag" --generate-notes --latest --verify-tag
+          }
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "GitHub release creation failed with exit code $LASTEXITCODE."
+          }
