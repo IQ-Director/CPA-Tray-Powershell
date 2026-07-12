@@ -137,9 +137,13 @@ try {
 
     # Preserve the current binary so a failed update can be rolled back safely.
     if (Test-Path -LiteralPath $binaryPath -PathType Leaf) {
-        $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-        $backupPath = Join-Path $backupDir "cli-proxy-api-$currentLabel-$timestamp.exe"
-        Copy-Item -LiteralPath $binaryPath -Destination $backupPath
+        $backupPath = Join-Path $backupDir 'cli-proxy-api.previous.exe'
+        Copy-Item -LiteralPath $binaryPath -Destination $backupPath -Force
+
+        # Keep only the version that was installed immediately before this update.
+        Get-ChildItem -LiteralPath $backupDir -Filter 'cli-proxy-api*.exe' -File |
+            Where-Object { $_.FullName -ne $backupPath } |
+            Remove-Item -Force
     }
 
     Copy-Item -LiteralPath $newBinary.FullName -Destination $binaryPath -Force

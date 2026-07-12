@@ -154,4 +154,4 @@ start.bat
 https://api.github.com/repos/router-for-me/CLIProxyAPI/releases/latest
 ```
 
-更新脚本仅下载 Windows AMD64 版本，并使用官方 `checksums.txt` 验证下载文件。如果本地尚无 `cli-proxy-api.exe`，脚本会直接安装最新版本；更新已有版本时，旧程序会备份到 `backups` 目录。
+更新脚本仅下载 Windows AMD64 版本，并使用官方 `checksums.txt` 验证下载文件。如果本地尚无 `cli-proxy-api.exe`，脚本会直接安装最新版本；更新已有版本时，更新前的程序会保存为 `backups/cli-proxy-api.previous.exe`。每次更新都会覆盖该文件并清理旧备份，因此只保留上一个版本用于失败回滚。
