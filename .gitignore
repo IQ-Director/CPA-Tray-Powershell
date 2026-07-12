@@ -2,7 +2,6 @@
 *.exe
 
 # Local configuration and credentials
-config.yaml
 auths/
 
 # Runtime data

@@ -14,13 +14,32 @@ Add-Type -AssemblyName System.Windows.Forms
 
 # Resolve every runtime file relative to this script so the directory is portable.
 $baseDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$url = "http://127.0.0.1:8317/management.html"
+$defaultUrl = "http://127.0.0.1:8317/management.html"
+$trayConfigPath = Join-Path $baseDir "cpa-tray.config.json"
+$url = $defaultUrl
 $userDataDir = Join-Path $baseDir "webui-profile"
 $stopScript = Join-Path $baseDir "stop.bat"
 $restartUpdateScript = Join-Path $baseDir "restart-and-update.ps1"
 $serviceExe = Join-Path $baseDir "cli-proxy-api.exe"
 $trayIconPath = Join-Path $baseDir "CPA.ico"
 $powerShellExe = (Get-Process -Id $PID).Path
+
+# Load a complete HTTP or HTTPS management URL from the optional tray config.
+if (Test-Path -LiteralPath $trayConfigPath -PathType Leaf) {
+    try {
+        $trayConfig = Get-Content -LiteralPath $trayConfigPath -Raw | ConvertFrom-Json
+        $configuredUrl = [uri]([string]$trayConfig.managementUrl).Trim()
+
+        if (-not $configuredUrl.IsAbsoluteUri -or $configuredUrl.Scheme -notin @("http", "https")) {
+            throw "managementUrl must be an absolute HTTP or HTTPS URL."
+        }
+
+        $url = $configuredUrl.AbsoluteUri
+    }
+    catch {
+        $url = $defaultUrl
+    }
+}
 
 # A named mutex prevents repeated start.bat calls from creating duplicate tray icons.
 $createdNew = $false
