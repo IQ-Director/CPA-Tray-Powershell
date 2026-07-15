@@ -112,11 +112,16 @@ jobs:
           $tag = $env:GITHUB_REF_NAME
           $assets = Get-ChildItem -LiteralPath "dist" -File | ForEach-Object { $_.FullName }
 
+          $releaseNotes = (git log -1 --format="%B" $tag) -join [Environment]::NewLine
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to read the commit message for tag $tag."
+          }
+
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) {
             gh release upload $tag $assets --clobber
           } else {
-            gh release create $tag $assets --title "CPA-Tray-Powershell $tag" --generate-notes --latest --verify-tag
+            gh release create $tag $assets --title "CPA-Tray-Powershell $tag" --notes $releaseNotes --generate-notes --latest --verify-tag
           }
 
           if ($LASTEXITCODE -ne 0) {
