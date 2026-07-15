@@ -141,7 +141,13 @@ $exitAction = {
 }
 
 $openItem.add_Click($openAction)
-$notifyIcon.add_DoubleClick($openAction)
+$notifyIcon.add_MouseClick({
+    param($sender, $eventArgs)
+
+    if ($eventArgs.Button -eq [System.Windows.Forms.MouseButtons]::Left) {
+        & $openAction
+    }
+})
 $restartUpdateItem.add_Click($restartUpdateAction)
 $exitItem.add_Click($exitAction)
 
