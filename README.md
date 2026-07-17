@@ -1,18 +1,18 @@
 # CPA-Tray-Powershell
 
-使用 PowerShell 将 [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI) 以 Windows 系统托盘形式运行，并在每次启动时检查和更新 CLIProxyAPI。
+使用 PowerShell 将 [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI) 以 Windows 系统托盘形式运行，并可在每次启动时检查和更新 CLIProxyAPI。
 
 主仓库提供启动、停止、重启、托盘和更新脚本、默认配置文件，并通过 Git 子模块引用 RunHiddenConsole 源码；不包含 CLIProxyAPI 程序本体、账号数据或其他运行数据。项目发布的 Release 压缩包会附带默认 `config.yaml` 和 `RunHiddenConsole.exe`，便于直接使用。
 
 ## 功能
 
 - 隐藏启动 CLIProxyAPI，不显示终端窗口
-- 启动时检查 CLIProxyAPI 最新版本
+- 可配置启动时是否检查 CLIProxyAPI 最新版本
 - 下载更新前验证官方 SHA-256 校验
 - 更新失败时自动恢复上一版本
 - 使用 Chrome 应用模式打开管理界面
 - 关闭管理窗口后继续在托盘后台运行
-- 双击托盘图标重新打开管理界面
+- 左键单击托盘图标重新打开管理界面
 - 从托盘一键停止服务、检查更新并重新启动
 - 从托盘菜单退出并停止 CLIProxyAPI
 - 防止重复创建托盘实例
@@ -103,12 +103,12 @@ start.bat
 
 启动后会自动执行以下操作：
 
-1. 从 CLIProxyAPI 官方 GitHub Releases 检查更新。
+1. 按配置从 CLIProxyAPI 官方 GitHub Releases 检查更新。
 2. 隐藏启动 `cli-proxy-api.exe`。
 3. 创建系统托盘图标。
 4. 打开 `cpa-tray.config.json` 中配置的管理页面。
 
-关闭管理窗口不会停止服务。双击托盘图标，或右键选择 `Open Management`，可重新打开管理界面。
+关闭管理窗口不会停止服务。左键单击托盘图标，或右键选择 `Open Management`，可重新打开管理界面。
 
 ### 自定义管理页面 URL
 
@@ -116,7 +116,8 @@ start.bat
 
 ```json
 {
-  "managementUrl": "http://127.0.0.1:8317/management.html"
+  "managementUrl": "http://127.0.0.1:8317/management.html",
+  "autoUpdate": true
 }
 ```
 
@@ -130,7 +131,18 @@ start.bat
 
 如果配置文件不存在、JSON 格式错误、地址不是绝对 URL，或协议不是 HTTP/HTTPS，托盘会回退到默认地址 `http://127.0.0.1:8317/management.html`。
 
-右键托盘图标并选择 `Restart and Update`，会在终止当前 `cli-proxy-api.exe` 进程，并在重新启动时完成更新。
+将 `autoUpdate` 显式设为 `false` 可以禁止所有更新：
+
+```json
+{
+  "managementUrl": "http://127.0.0.1:8317/management.html",
+  "autoUpdate": false
+}
+```
+
+关闭后，普通启动、托盘操作以及直接运行 `update-cli-proxy-api.ps1` 都不会更新 `cli-proxy-api.exe`，托盘中的更新菜单会显示为 `Updates Disabled` 并处于禁用状态。未配置 `autoUpdate` 或设为 `true` 时保持自动更新。
+
+启用更新时，右键托盘图标并选择 `Restart and Update`，会终止当前 `cli-proxy-api.exe` 进程，并在重新启动时完成更新。
 
 右键托盘图标并选择 `Exit`，会停止 CLIProxyAPI 并退出托盘程序。
 
@@ -155,3 +167,5 @@ https://api.github.com/repos/router-for-me/CLIProxyAPI/releases/latest
 ```
 
 更新脚本仅下载 Windows AMD64 版本，并使用官方 `checksums.txt` 验证下载文件。如果本地尚无 `cli-proxy-api.exe`，脚本会直接安装最新版本；更新已有版本时，更新前的程序会保存为 `backups/cli-proxy-api.previous.exe`。每次更新都会覆盖该文件并清理旧备份，因此只保留上一个版本用于失败回滚。
+
+如需固定当前版本，请在 `cpa-tray.config.json` 中设置 `"autoUpdate": false`。该开关必须是 JSON 布尔值；配置文件无法解析或值类型错误时，更新脚本会安全退出，不会下载或替换程序。

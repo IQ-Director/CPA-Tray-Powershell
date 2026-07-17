@@ -1,3 +1,4 @@
 {
-  "managementUrl": "http://127.0.0.1:8317/management.html"
+  "managementUrl": "http://127.0.0.1:8317/management.html",
+  "autoUpdate": true
 }

@@ -17,6 +17,7 @@ $baseDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $defaultUrl = "http://127.0.0.1:8317/management.html"
 $trayConfigPath = Join-Path $baseDir "cpa-tray.config.json"
 $url = $defaultUrl
+$autoUpdateEnabled = $true
 $userDataDir = Join-Path $baseDir "webui-profile"
 $stopScript = Join-Path $baseDir "stop.bat"
 $restartUpdateScript = Join-Path $baseDir "restart-and-update.ps1"
@@ -28,6 +29,16 @@ $powerShellExe = (Get-Process -Id $PID).Path
 if (Test-Path -LiteralPath $trayConfigPath -PathType Leaf) {
     try {
         $trayConfig = Get-Content -LiteralPath $trayConfigPath -Raw | ConvertFrom-Json
+        $autoUpdateProperty = $trayConfig.PSObject.Properties["autoUpdate"]
+
+        if ($autoUpdateProperty) {
+            if ($autoUpdateProperty.Value -isnot [bool]) {
+                throw "autoUpdate must be a JSON boolean."
+            }
+
+            $autoUpdateEnabled = $autoUpdateProperty.Value
+        }
+
         $configuredUrl = [uri]([string]$trayConfig.managementUrl).Trim()
 
         if (-not $configuredUrl.IsAbsoluteUri -or $configuredUrl.Scheme -notin @("http", "https")) {
@@ -84,6 +95,11 @@ $restartUpdateItem = $contextMenu.Items.Add("Restart and Update")
 $null = $contextMenu.Items.Add([System.Windows.Forms.ToolStripSeparator]::new())
 $exitItem = $contextMenu.Items.Add("Exit")
 $notifyIcon = [System.Windows.Forms.NotifyIcon]::new()
+
+if (-not $autoUpdateEnabled) {
+    $restartUpdateItem.Text = "Updates Disabled"
+    $restartUpdateItem.Enabled = $false
+}
 
 # Prefer CPA.ico, then the service executable icon, and finally a Windows default.
 try {

@@ -20,11 +20,35 @@ $baseDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $binaryPath = Join-Path $baseDir 'cli-proxy-api.exe'
 $pidFile = Join-Path $baseDir 'cli-proxy-api.pid'
 $backupDir = Join-Path $baseDir 'backups'
+$trayConfigPath = Join-Path $baseDir 'cpa-tray.config.json'
 $releaseApi = 'https://api.github.com/repos/router-for-me/CLIProxyAPI/releases/latest'
 $headers = @{
     Accept = 'application/vnd.github+json'
     'User-Agent' = 'CLIProxyAPI-Windows-Updater'
     'X-GitHub-Api-Version' = '2022-11-28'
+}
+
+# Enforce the update switch here so every caller follows the same setting.
+if (Test-Path -LiteralPath $trayConfigPath -PathType Leaf) {
+    try {
+        $trayConfig = Get-Content -LiteralPath $trayConfigPath -Raw | ConvertFrom-Json
+        $autoUpdateProperty = $trayConfig.PSObject.Properties['autoUpdate']
+
+        if ($autoUpdateProperty) {
+            if ($autoUpdateProperty.Value -isnot [bool]) {
+                throw 'autoUpdate must be a JSON boolean.'
+            }
+
+            if (-not $autoUpdateProperty.Value) {
+                Write-Host 'CLIProxyAPI updates are disabled in cpa-tray.config.json.'
+                exit 0
+            }
+        }
+    }
+    catch {
+        Write-Warning "Could not read the auto-update setting: $($_.Exception.Message)"
+        exit 1
+    }
 }
 
 function Get-InstalledVersion {
